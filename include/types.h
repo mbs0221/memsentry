@@ -22,6 +22,7 @@ enum prot_method {
 };
 
 #ifdef __cplusplus
+#include <string>
 static std::string prot_method_strings[] = {
     "sfi",
     "mpx",

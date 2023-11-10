@@ -1,10 +1,10 @@
 # Configures which LLVM to use
 
-# Ubuntu 16.04 system LLVM
-CLANG    := clang
-OPT      := opt-3.8
-LLINK    := llvm-link-3.8
-LLVMCONF := llvm-config-3.8
+# Ubuntu 22.04 system LLVM
+CLANG    := clang-12
+OPT      := opt-12
+LLINK    := llvm-link-12
+LLVMCONF := llvm-config-12
 
 # Local (asserts enabled)
 #LLVMPATH := /path/to/llvm/install/bin

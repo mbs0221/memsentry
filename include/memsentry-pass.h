@@ -3,6 +3,7 @@
 
 #include <string>
 #include <llvm/IR/Instruction.h>
+#include <llvm/Support/CommandLine.h>
 
 static const std::string MemSentrySafeMDName = "memsentry.allowedaccess";
 

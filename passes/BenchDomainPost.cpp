@@ -1,6 +1,6 @@
 /*
- * Should be used in conjuction with -memsentry-benchdomain, and should run
- * after -memsentry.
+ * Should be used in conjuction with --memsentry-benchdomain, and should run
+ * after --memsentry.
  * See BenchDomain.cpp for more details.
  */
 

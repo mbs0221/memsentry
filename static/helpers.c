@@ -18,6 +18,11 @@ void *_memsentry_sfi(void *ptr) {
 /*****************************
  * MPX
  *****************************/
+#if 0
+void *_memsentry_mpx(void *ptr) {
+    return _memsentry_sfi(ptr);
+}
+#else
 void *_memsentry_mpx(void *ptr) {
     __asm__ __volatile__ (
             "bndcu %0, %%bnd0 \n\t"
@@ -25,6 +30,7 @@ void *_memsentry_mpx(void *ptr) {
             : "r" (ptr));
     return ptr;
 }
+#endif
 
 
 /*****************************
@@ -43,6 +49,7 @@ void _memsentry_vmfunc_end(void) {
 /*****************************
  * MPK
  *****************************/
+#if 0
 /* Simulate cost */
 #define mpk_switch(mapping)                                                    \
 	__asm__ __volatile__ (                                                     \
@@ -51,6 +58,17 @@ void _memsentry_vmfunc_end(void) {
 			"movq %%r14, %%xmm14 \n\t"                                         \
             "mfence \n\t"                                                      \
 			:::"%r14", "%xmm15");
+#else
+static inline void wrpkru(unsigned int pkru) {
+    __asm__ __volatile__ (
+            "wrpkru \n\t"
+            :
+            : "a" (pkru)
+            : "%rbx", "%rcx", "%rdx");
+}
+
+#define mpk_switch(mapping) wrpkru(mapping ? PKRU_SECURE_DOMAIN : PKRU_NORMAL_DOMAIN )
+#endif
 void _memsentry_mpk_begin(void) {
     mpk_switch(1);
 }

@@ -11,11 +11,11 @@
  * For certain domain-based approaches the safe-region is pre-allocated, and the
  * size of this region should be specified at compile time.
  *
- * -memsentry-prot-feature=[sfi*,mpx,vmfunc,crypt]
- * -memsentry-whitelist-section=memsentry_functions
- * -memsentry-rw=[r,w,rw*]                           # For sfi/mpx
- * -memsentry-verify-external-call-args=true         # For sfi/mpx
- * -memsentry-max-region-size=4096                   # For crypt
+ * --memsentry-prot-feature=[sfi*,mpx,vmfunc,crypt]
+ * --memsentry-whitelist-section=memsentry_functions
+ * --memsentry-rw=[r,w,rw*]                           # For sfi/mpx
+ * --memsentry-verify-external-call-args=true         # For sfi/mpx
+ * --memsentry-max-region-size=4096                   # For crypt
  */
 
 #define DEBUG_TYPE "memsentry"
@@ -33,16 +33,14 @@ cl::opt<prot_method> ProtMethod("memsentry-prot-method",
         clEnumValN(MPX,    "mpx",    "Intel MPX (memory protection extensions)"),
         clEnumValN(VMFUNC, "vmfunc", "VM-Functions (requires vmfunc-enabled hypervisor like MemSentry's Dune)"),
         clEnumValN(MPK,    "mpk",    "Intel MPK (memory protection keys). Upcoming, implemented as simulation"),
-        clEnumValN(CRYPT,  "crypt",  "Encryption (using Intel AES-NI)"),
-        clEnumValEnd), cl::init(SFI));
+        clEnumValN(CRYPT,  "crypt",  "Encryption (using Intel AES-NI)")), cl::init(SFI));
 
 cl::opt<readwrite> ReadWrite("memsentry-rw",
     cl::desc("What type of memory accesses to protect when using address-based approaches:"),
     cl::values(
         clEnumValN(READWRITE, "rw", "Reads and writes"),
         clEnumValN(READ,      "r",  "Reads only"),
-        clEnumValN(WRITE,     "w",  "Writes only"),
-        clEnumValEnd), cl::init(READWRITE));
+        clEnumValN(WRITE,     "w",  "Writes only")), cl::init(READWRITE));
 
 static cl::opt<std::string> WhitelistSection("memsentry-whitelist-section",
         cl::desc("Functions in this section are allowed access to the safe region"),
@@ -98,7 +96,7 @@ static bool hasPointerArg(Function *F) {
 }
 
 
-bool callsIntoWhitelistedFunction(CallSite &CS) {
+bool callsIntoWhitelistedFunction(CallBase &CS) {
     Function *F = CS.getCalledFunction();
     if (!F) // Indirect call
         return false;
@@ -131,13 +129,12 @@ struct MemSentryPass : public ModulePass {
 class Protection {
     protected:
         Module *M;
-        InlineFunctionInfo *inliningInfo;
+        InlineFunctionInfo inliningInfo;
         enum prot_method protMethod;
         std::string protMethodStr;
     public:
         Protection(Module *M, enum prot_method protMethod) {
             this->M = M;
-            this->inliningInfo = new InlineFunctionInfo();
             this->protMethod = protMethod;
             this->protMethodStr = prot_method_strings[protMethod];
         }
@@ -159,7 +156,7 @@ class Protection {
             assert(0 && "Not implemented");
         }
 
-        virtual void handleCallInst(CallSite &CS) = 0;
+        virtual void handleCallInst(CallBase &CS) = 0;
 
 
         /*
@@ -180,7 +177,7 @@ class Protection {
                     if (!F)
                         continue;
                     if (F->getName().startswith("_memsentry_" + protMethodStr)) {
-                        InlineFunction(CI, *inliningInfo);
+                        InlineFunction(*CI, inliningInfo);
                         has_changed = true;
                         break;
                     }
@@ -220,28 +217,28 @@ class AddressProtection : public Protection {
                 checkFunc = getHelperFunc(M, checkFuncName);
             }
 
-        virtual void handleLoadInst(LoadInst *LI) {
+        virtual void handleLoadInst(LoadInst *LI) override {
             if (!isAllowedAccess(LI))
                 LI->setOperand(0, verifyPtr(LI->getOperand(0), LI));
         }
 
-        virtual void handleStoreInst(StoreInst *SI) {
+        virtual void handleStoreInst(StoreInst *SI) override {
             if (!isAllowedAccess(SI))
                 SI->setOperand(1, verifyPtr(SI->getOperand(1), SI));
         }
 
-        virtual void handleLoadIntrinsic(MemTransferInst *MTI) {
+        virtual void handleLoadIntrinsic(MemTransferInst *MTI) override {
             if (!isAllowedAccess(MTI))
                 MTI->setSource(verifyPtr(MTI->getRawSource(), MTI));
         }
 
-        virtual void handleStoreIntrinsic(MemIntrinsic *MI) {
+        virtual void handleStoreIntrinsic(MemIntrinsic *MI) override {
             if (!isAllowedAccess(MI))
                 MI->setDest(verifyPtr(MI->getRawDest(), MI));
         }
 
         /* Verify pointer args to external functions if flag is set. */
-        void handleCallInst(CallSite &CS) {
+        void handleCallInst(CallBase &CS) override {
             Function *F = CS.getCalledFunction();
             if (!VerifyExternalCallArguments)
                 return;
@@ -282,12 +279,12 @@ class AddressProtection : public Protection {
                 }
             }
 
-            Instruction *I = CS.getInstruction();
-            for (unsigned i = 0, n = CS.getNumArgOperands(); i < n; i++) {
+            Instruction *I = &CS;
+            for (unsigned i = 0, n = CS.getNumOperands() - 1; i < n; i++) {
                 Value *Arg = CS.getArgOperand(i);
                 if (Arg->getType()->isPointerTy()){
                     Value *MaskedArg = verifyPtr(Arg, I);
-                    CS.getInstruction()->setOperand(i, MaskedArg);
+                    CS.setArgOperand(i, MaskedArg);
                 }
             }
         }
@@ -355,24 +352,24 @@ class DomainProtection : public Protection {
         }
     public:
         DomainProtection(Module *M, enum prot_method protMethod)
-            : Protection(M, protMethod) {
-                beginFuncName = "_memsentry_" + protMethodStr + "_begin";
-                endFuncName = "_memsentry_" + protMethodStr + "_end";
+            : Protection(M, protMethod)
+            , beginFuncName("_memsentry_" + protMethodStr + "_begin")
+            , endFuncName("_memsentry_" + protMethodStr + "_end") {
                 beginFunc = getHelperFunc(M, beginFuncName);
                 endFunc = getHelperFunc(M, endFuncName);
             }
 
-        virtual void handleMemInst(Instruction *I) {
+        virtual void handleMemInst(Instruction *I) override {
             if (isAllowedAccess(I))
                 changeDomain(I);
         }
 
-        void handleCallInst(CallSite &CS) {
+        void handleCallInst(CallBase &CS) override {
             if (callsIntoWhitelistedFunction(CS))
-                changeDomain(CS.getInstruction());
+                changeDomain(&CS);
         }
 
-        virtual void postInstrumentation() {
+        virtual void postInstrumentation() override {
             // Optimize domain-based instrumentation by removing unnecessary
             // switches back and forth.
             for (Function &F : *M) {
@@ -425,8 +422,8 @@ void MemSentryPass::handleInst(Instruction *I) {
             prot->handleStoreIntrinsic(MI);
     }
     else if (isa<CallInst>(I) || isa<InvokeInst>(I)) {
-        CallSite CS(I);
-        prot->handleCallInst(CS);
+        CallBase *CS = dyn_cast<CallBase>(I);
+        prot->handleCallInst(*CS);
     }
 }
 

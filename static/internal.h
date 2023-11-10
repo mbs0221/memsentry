@@ -32,4 +32,8 @@ extern char *_memsentry_crypt_iv;
             : "irm"(mapping)                                                   \
             : "%rax", "%rcx", "memory");
 
+/* helpers.c */
+#define PKRU_SECURE_DOMAIN 0x00000000
+#define PKRU_NORMAL_DOMAIN 0xffffffff
+
 #endif /* MEMSENTRY_STATIC_INTERNAL_H */

@@ -2,7 +2,7 @@ include ../config.mk
 
 CXX     := g++
 CFLAGS  := -Wall -g `$(LLVMCONF) --cxxflags` -O0 \
-		   -I../include -ggdb
+		   -I../include -ggdb -fPIC
 LDFLAGS := -g -shared
 OBJDIR  ?= ./obj
 

@@ -73,11 +73,11 @@ optimizations, as this will eliminate a large number of memory accesses.
 An example of how to run MemSentry is as follows:
 ```
 opt ...
-    -defense-passes ...                        # Run defense normally
-    -memsentry-prot-method=mpx                 # Protect safe region using MPX
-    -memsentry-rw=w                            # Instrument only writes
-    -memsentry-whitelist-section=my-functions  # See above
-    -memsentry
+    --defense-passes ...                        # Run defense normally
+    --memsentry-prot-method=mpx                 # Protect safe region using MPX
+    --memsentry-rw=w                            # Instrument only writes
+    --memsentry-whitelist-section=my-functions  # See above
+    --memsentry
     ...
 ```
 
@@ -92,9 +92,9 @@ used as follows:
 
 ```
 opt ...
-    -memsentry-benchdomain-points=[call-ret,icall,libfunc]  # Benchmark options
-    -memsentry-prot-method=.. -memsenty-max-region-size=..  # MemSentry options
-    -memsentry-benchdomain -memsentry -memsentry-benchdomain-post ...
+    --memsentry-benchdomain-points=[call-ret,icall,libfunc]  # Benchmark options
+    --memsentry-prot-method=.. --memsentry-max-region-size=..  # MemSentry options
+    --memsentry-benchdomain --memsentry --memsentry-benchdomain-post ...
 ```
 
 ## Example: SafeStack

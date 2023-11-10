@@ -11,10 +11,10 @@
  * thus be used to benchmark the performance of domain-based approaches at
  * different frequencies of required switches.
  * Passes should thus be used as follows:
- *  -memsentry-benchdomain -memsentry -memsentry-benchdomain-post
+ *  --memsentry-benchdomain --memsentry --memsentry-benchdomain-post
  *
- * -memsentry-benchdomain-points=[call-ret,icall,libfunc]
- * -memsentry-benchdomain-libfunc-file=<file>
+ * --memsentry-benchdomain-points=[call-ret,icall,libfunc]
+ * --memsentry-benchdomain-libfunc-file=<file>
  *
  * call-ret: insert mem access before every call and return
  * icall:    insert mem access before every indirect call
@@ -44,8 +44,7 @@ cl::opt<points> Points("memsentry-benchdomain-points",
     cl::values(
         clEnumValN(CALLRET, "call-ret", "Every call and return"),
         clEnumValN(ICALL,   "icall",    "Indirect calls"),
-        clEnumValN(LIBFUNC, "libfunc",  "Library functions (syscalls), specify list with -memsentry-benchdomain-libfunc-file."),
-        clEnumValEnd), cl::init(CALLRET));
+        clEnumValN(LIBFUNC, "libfunc",  "Library functions (syscalls), specify list with --memsentry-benchdomain-libfunc-file.")), cl::init(CALLRET));
 
 static cl::opt<std::string> LibFuncFile("memsentry-benchdomain-libfunc-file",
         cl::desc("Path to file containing (per line) functions that, when called, should be instrumented."));
@@ -59,7 +58,7 @@ struct MemSentryBenchDomain : public ModulePass {
         virtual bool runOnModule(Module &M);
 
     private:
-        std::set<std::string> libFuncSet;
+        std::set<StringRef> libFuncSet;
 
         void initLibFuncs();
         void handleInst(Instruction *I);
@@ -74,8 +73,8 @@ bool MemSentryBenchDomain::shouldInstrCallRet(Instruction *I) {
         /* Try to only instrument calls where we can also insert the
          * corresponding switch at the return, to better simulate what a defense
          * could do. */
-        CallSite CS(I);
-        Function *F = CS.getCalledFunction();
+        CallBase *CB = dyn_cast<CallBase>(I);
+        Function *F = CB->getCalledFunction();
         return !F || shouldInstrument(*F);
     }
 
@@ -87,8 +86,8 @@ bool MemSentryBenchDomain::shouldInstrCallRet(Instruction *I) {
 
 bool MemSentryBenchDomain::shouldInstrICall(Instruction *I) {
     if (isa<CallInst>(I) || isa<InvokeInst>(I)) {
-        CallSite CS(I);
-        Function *F = CS.getCalledFunction();
+        CallBase *CB = dyn_cast<CallBase>(I);
+        Function *F = CB->getCalledFunction();
         return F == nullptr;
     }
 
@@ -97,8 +96,8 @@ bool MemSentryBenchDomain::shouldInstrICall(Instruction *I) {
 
 bool MemSentryBenchDomain::shouldInstrLibFunc(Instruction *I) {
     if (isa<CallInst>(I) || isa<InvokeInst>(I)) {
-        CallSite CS(I);
-        Function *F = CS.getCalledFunction();
+        CallBase *CB = dyn_cast<CallBase>(I);
+        Function *F = CB->getCalledFunction();
 
         if (!F)
             return false;
@@ -131,9 +130,9 @@ void MemSentryBenchDomain::initLibFuncs() {
     std::ifstream input(LibFuncFile);
     std::string line;
     while (std::getline(input, line))
-        libFuncSet.insert(line);
+        libFuncSet.insert(StringRef(line));
 
-    for (std::string a : libFuncSet)
+    for (StringRef a : libFuncSet)
         errs() << " F: " << a << "\n";
 }
 

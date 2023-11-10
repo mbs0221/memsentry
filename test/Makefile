@@ -5,15 +5,15 @@ include ../config.mk
 
 CFLAGS  := -Wall -g -O3 -emit-llvm -c -I../include
 OPTFLAGS := -load ../passes/obj/libmemsentry-pass.so -memsentry \
-            -memsentry-rw=$(RW) -memsentry-prot-method=$(PROTMETHOD) \
-			-memsentry-verify-external-call-args=false \
-			-memsentry-whitelist-section=safe_functions -O3
+            --memsentry-rw=$(RW) --memsentry-prot-method=$(PROTMETHOD) \
+			--memsentry-verify-external-call-args=false \
+			--memsentry-whitelist-section=safe_functions -O3
 #OPTFLAGS := -load ../passes/obj/libmemsentry-pass.so \
-	-memsentry-benchdomain-points=call-ret \
-	-memsentry-benchdomain \
-	-memsentry-prot-method=vmfunc \
-	-memsentry \
-	-memsentry-benchdomain-post
+	--memsentry-benchdomain-points=call-ret \
+	--memsentry-benchdomain \
+	--memsentry-prot-method=vmfunc \
+	--memsentry \
+	--memsentry-benchdomain-post
 LDFLAGS := -g -O3
 OBJDIR  ?= ./obj
 

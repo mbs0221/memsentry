@@ -16,7 +16,8 @@
 #include <llvm/IR/Constants.h>
 #include <llvm/IR/IRBuilder.h>
 #include <llvm/Transforms/Utils/Cloning.h>
-
+#include <llvm/IR/AbstractCallSite.h>
+#include <llvm/IR/InstrTypes.h>
 
 #define ifcast(ty, var, val) if (ty *var = dyn_cast<ty>(val))
 

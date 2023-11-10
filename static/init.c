@@ -10,6 +10,7 @@ enum prot_method  _memsentry_prot_method = -1;
 /*****************************
  * MPX
  *****************************/
+#ifdef HAS_MPX
 void _memsentry_mpx_init(void) {
     long lb=0, ub=MPX_UB;
     _memsentry_mpx_init_for_process();
@@ -17,6 +18,9 @@ void _memsentry_mpx_init(void) {
             "bndmk (%0,%1), %%bnd0"
             :: "r"(lb), "r"(ub));
 }
+#else
+void _memsentry_mpx_init(void) { }
+#endif
 
 /*****************************
  * CRYPT
