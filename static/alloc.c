@@ -8,6 +8,7 @@
  * This limiated can easily be addressed by modifying the function in here to
  * keep, for instance, a freelist.
  */
+#define _GNU_SOURCE
 
 #include <stdlib.h>
 #include <unistd.h>
@@ -99,6 +100,8 @@ void *_memsentry_vmfunc_alloc(size_t sz) {
  *****************************/
 
 void *_memsentry_mpk_alloc(size_t sz) {
+    int status;
+    int pkey;
     void *pages;
 
     sz = _memsentry_pageround(sz);
@@ -109,6 +112,19 @@ void *_memsentry_mpk_alloc(size_t sz) {
         perror("_memsentry_mpk_alloc");
         return NULL;
     }
+
+    pkey = pkey_alloc(0, 0);
+    if (pkey == -1)
+        perror("pkey_alloc");
+
+    /*
+     * Set the protection key on "buffer".
+     * Note that it is still read/write as far as mprotect() is
+     * concerned and the previous pkey_set() overrides it.
+     */
+    status = pkey_mprotect(pages, sz, PROT_READ | PROT_WRITE, pkey);
+    if (status == -1)
+        perror("pkey_mprotect");
 
     return pages;
 }
